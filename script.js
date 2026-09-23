@@ -24,16 +24,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Filter Dropdown Interaction (simulate styling for focus if needed, standard select used in HTML)
-    // The standard <select> handles dropdown open/close natively.
-    // If you want to style the wrapper on focus:
-    const filterSelects = document.querySelectorAll('.filter-select select');
-    filterSelects.forEach(select => {
-        select.addEventListener('focus', function() {
-            this.parentElement.style.borderColor = 'var(--primary)';
-        });
-        select.addEventListener('blur', function() {
-            this.parentElement.style.borderColor = 'var(--border)';
+    // 2. Filter Dropdown Interaction
+    const filterItems = document.querySelectorAll('.filter-item:not(.sort-item)');
+    const activeFiltersContainer = document.getElementById('active-filters');
+    
+    function updateFilterValueText(selectElement) {
+        const filterItem = selectElement.closest('.filter-item');
+        const valueSpan = filterItem.querySelector('.filter-value');
+        if (valueSpan) {
+            const selectedText = selectElement.options[selectElement.selectedIndex].text;
+            valueSpan.textContent = selectedText;
+        }
+    }
+
+    // Initialize all filter dropdowns
+    document.querySelectorAll('.filter-item select').forEach(select => {
+        // Set initial text
+        updateFilterValueText(select);
+        
+        select.addEventListener('change', function() {
+            updateFilterValueText(this);
+            if (!this.closest('.sort-item')) {
+                renderActiveFilters();
+            }
         });
     });
 
@@ -71,33 +84,70 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 4 & 5. Filter Tag Remove & Clear All
-    const activeFiltersContainer = document.getElementById('active-filters');
-    const removeTagBtns = document.querySelectorAll('.remove-tag');
-    const clearFiltersBtn = document.getElementById('clear-filters');
-
-    function checkActiveFilters() {
-        const remainingTags = activeFiltersContainer.querySelectorAll('.filter-tag');
-        if (remainingTags.length === 0) {
+    // 4 & 5. Filter Tag Generation, Remove & Clear All
+    function renderActiveFilters() {
+        if (!activeFiltersContainer) return;
+        
+        // Find all active filters (where selected index > 0)
+        const activeSelects = Array.from(filterItems)
+            .map(item => item.querySelector('select'))
+            .filter(select => select && select.selectedIndex > 0);
+        
+        if (activeSelects.length === 0) {
             activeFiltersContainer.style.display = 'none';
+            return;
+        }
+        
+        activeFiltersContainer.style.display = 'flex';
+        
+        const labelHTML = '<span class="filter-label">Bộ lọc đang chọn:</span>';
+        let tagsHTML = '';
+        
+        activeSelects.forEach((select, index) => {
+            const text = select.options[select.selectedIndex].text;
+            const selectId = `filter-select-${index}`;
+            select.dataset.filterId = selectId; 
+            tagsHTML += `
+                <div class="filter-tag">
+                    <span>${text}</span>
+                    <button class="remove-tag" data-target-id="${selectId}"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `;
+        });
+        
+        const clearBtnHTML = '<a href="#" class="clear-filters" id="clear-filters">Xóa tất cả</a>';
+        activeFiltersContainer.innerHTML = labelHTML + tagsHTML + clearBtnHTML;
+        
+        // Bind events to new remove buttons
+        const removeBtns = activeFiltersContainer.querySelectorAll('.remove-tag');
+        removeBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target-id');
+                const targetSelect = document.querySelector(`select[data-filter-id="${targetId}"]`);
+                if (targetSelect) {
+                    targetSelect.selectedIndex = 0;
+                    updateFilterValueText(targetSelect);
+                    renderActiveFilters();
+                }
+            });
+        });
+        
+        // Bind clear all
+        const clearFiltersBtn = document.getElementById('clear-filters');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                activeSelects.forEach(select => {
+                    select.selectedIndex = 0;
+                    updateFilterValueText(select);
+                });
+                renderActiveFilters();
+            });
         }
     }
-
-    removeTagBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            this.parentElement.remove();
-            checkActiveFilters();
-        });
-    });
-
-    if (clearFiltersBtn) {
-        clearFiltersBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const tags = activeFiltersContainer.querySelectorAll('.filter-tag');
-            tags.forEach(tag => tag.remove());
-            checkActiveFilters();
-        });
-    }
+    
+    // Initial render
+    renderActiveFilters();
 
     // 6. Back to Top Button
     const backToTopBtn = document.getElementById('back-to-top');
