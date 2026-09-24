@@ -37,16 +37,77 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Initialize all filter dropdowns
-    document.querySelectorAll('.filter-item select').forEach(select => {
-        // Set initial text
+    // Initialize custom dropdowns for all filters
+    document.querySelectorAll('.filter-item').forEach(item => {
+        const select = item.querySelector('select');
+        if (!select) return;
+
+        // Ensure original select is initialized properly
         updateFilterValueText(select);
+
+        // Create custom dropdown container
+        const dropdownList = document.createElement('div');
+        dropdownList.className = 'custom-dropdown-list';
         
+        // Populate options based on the select element
+        Array.from(select.options).forEach((opt, index) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'custom-dropdown-option';
+            optionDiv.textContent = opt.text;
+            if (index === select.selectedIndex) {
+                optionDiv.classList.add('selected');
+            }
+            
+            optionDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Update select element
+                select.selectedIndex = index;
+                
+                // Update active state on options
+                dropdownList.querySelectorAll('.custom-dropdown-option').forEach(el => el.classList.remove('selected'));
+                optionDiv.classList.add('selected');
+                
+                // Close dropdown
+                item.classList.remove('dropdown-open');
+                
+                // Dispatch change event to trigger existing logic
+                select.dispatchEvent(new Event('change'));
+            });
+            dropdownList.appendChild(optionDiv);
+        });
+
+        item.appendChild(dropdownList);
+
+        // Toggle dropdown on filter item click
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Close other dropdowns
+            document.querySelectorAll('.filter-item.dropdown-open').forEach(other => {
+                if (other !== item) other.classList.remove('dropdown-open');
+            });
+            item.classList.toggle('dropdown-open');
+        });
+
+        // Handle logical change event (e.g., from 'Xóa tất cả' or clicking tags)
         select.addEventListener('change', function() {
             updateFilterValueText(this);
+            // Sync custom dropdown option states
+            const customOptions = dropdownList.querySelectorAll('.custom-dropdown-option');
+            customOptions.forEach((opt, idx) => {
+                if (idx === this.selectedIndex) opt.classList.add('selected');
+                else opt.classList.remove('selected');
+            });
+
             if (!this.closest('.sort-item')) {
                 renderActiveFilters();
             }
+        });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.filter-item.dropdown-open').forEach(item => {
+            item.classList.remove('dropdown-open');
         });
     });
 
